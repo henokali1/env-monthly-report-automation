@@ -1,0 +1,48 @@
+# -------------------------
+# Python
+# -------------------------
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+.eggs/
+
+# -------------------------
+# Virtual Environments
+# -------------------------
+venv/
+.venv/
+env/
+ENV/
+
+# -------------------------
+# Flask
+# -------------------------
+instance/
+.webassets-cache
+.flaskenv
+
+# -------------------------
+# Logs & Temp Files
+# -------------------------
+*.log
+*.pid
+*.sqlite3
+*.db
+*.tmp
+.DS_Store
+
+# -------------------------
+# IDE / Editor
+# -------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# -------------------------
+# Static uploads (ignore contents, keep folder)
+# -------------------------
+static/uploads/*
+!static/uploads/.gitkeep

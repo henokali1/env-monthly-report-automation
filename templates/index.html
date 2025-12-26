@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monthly Report Automator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>Report Automator</h1>
+            <p class="subtitle">Efficiently generate FM01 MET & FM02 IT Monthly Reports</p>
+        </header>
+
+        <section class="card">
+            <h2 class="section-title"><span>📊</span> 1. Select Report Type</h2>
+            <div class="radio-group">
+                <div class="radio-option">
+                    <input type="radio" name="report_type" id="fm01" value="FM01" checked>
+                    <label for="fm01" class="radio-label">
+                        <span class="icon">📡</span>
+                        <strong>FM01 MET</strong>
+                        <p style="font-size: 0.75rem; color: var(--text-secondary);">Operational Report</p>
+                    </label>
+                </div>
+                <div class="radio-option">
+                    <input type="radio" name="report_type" id="fm02" value="FM02">
+                    <label for="fm02" class="radio-label">
+                        <span class="icon">💻</span>
+                        <strong>FM02 IT</strong>
+                        <p style="font-size: 0.75rem; color: var(--text-secondary);">Operational Report</p>
+                    </label>
+                </div>
+            </div>
+        </section>
+
+        <section class="card">
+            <h2 class="section-title"><span>⚙️</span> 2. Configuration</h2>
+            <div class="form-group">
+                <label>FM01 MET Template Path</label>
+                <div class="file-input-wrapper">
+                    <input type="text" id="fm01_template" value="{{ config.fm01_template }}" readonly
+                        placeholder="Select FM01 Template...">
+                    <button class="btn-icon" onclick="pickPath('fm01_template', 'file')">📁 Choose</button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>FM02 IT Template Path</label>
+                <div class="file-input-wrapper">
+                    <input type="text" id="fm02_template" value="{{ config.fm02_template }}" readonly
+                        placeholder="Select FM02 Template...">
+                    <button class="btn-icon" onclick="pickPath('fm02_template', 'file')">📁 Choose</button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>FM01 MET Output Base Directory</label>
+                <div class="file-input-wrapper">
+                    <input type="text" id="fm01_base_directory" value="{{ config.fm01_base_directory }}" readonly
+                        placeholder="Select FM01 Base Directory...">
+                    <button class="btn-icon" onclick="pickPath('fm01_base_directory', 'folder')">📂 Choose</button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>FM02 IT Output Base Directory</label>
+                <div class="file-input-wrapper">
+                    <input type="text" id="fm02_base_directory" value="{{ config.fm02_base_directory }}" readonly
+                        placeholder="Select FM02 Base Directory...">
+                    <button class="btn-icon" onclick="pickPath('fm02_base_directory', 'folder')">📂 Choose</button>
+                </div>
+            </div>
+        </section>
+
+        <section class="card">
+            <h2 class="section-title"><span>📅</span> 3. Date & Details</h2>
+            <div class="grid">
+                <div class="form-group">
+                    <label>Report Month</label>
+                    <select id="month">
+                        {% for m in ["January", "February", "March", "April", "May", "June", "July", "August",
+                        "September", "October", "November", "December"] %}
+                        <option value="{{ m }}" {% if m==default_month %}selected{% endif %}>{{ m }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Report Year</label>
+                    <input type="number" id="year" value="{{ default_year }}" min="2000" max="2100">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Work Log</label>
+                <textarea id="work_log" rows="6"
+                    placeholder="Enter work activities, one per line or as a block..."></textarea>
+            </div>
+        </section>
+
+        <section class="card">
+            <h2 class="section-title"><span>📸</span> 4. Photos (8 Required)</h2>
+            <p style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 1rem;">
+                Upload up to 8 photos. Drag and drop to reorder.
+            </p>
+            <input type="file" id="photo_input" style="display: none;" multiple accept="image/*">
+            <div class="photo-grid" id="photo_grid">
+                <!-- 8 empty slots -->
+                {% for i in range(1, 9) %}
+                <div class="photo-slot" data-index="{{ i - 1 }}" onclick="triggerUpload(this.dataset.index)"
+                    ondrop="drop(event)" ondragover="allowDrop(event)" draggable="true" ondragstart="drag(event)">
+                    <span class="order-num">{{ i }}</span>
+                    <div class="upload-placeholder">
+                        <span>➕</span>
+                        <span>Upload</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            <div style="margin-top: 1rem; text-align: right;">
+                <button class="btn-icon" onclick="document.getElementById('photo_input').click()">📤 Bulk
+                    Upload</button>
+            </div>
+        </section>
+
+        <button class="btn-primary" onclick="generateReport()">🚀 Generate Report</button>
+
+        <section class="card status-card">
+            <h2 class="section-title"><span>🔄</span> Status</h2>
+            <div class="progress-container">
+                <div id="progress-bar"></div>
+            </div>
+            <div class="status-log" id="status_log">
+                <div class="log-entry">✨ Ready to start!</div>
+            </div>
+        </section>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+
+</html>
