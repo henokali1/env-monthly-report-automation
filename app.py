@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import datetime
 import tkinter as tk
@@ -285,6 +286,14 @@ def rephrase_logs():
         result = response.json()
         rephrased_text = result['choices'][0]['message']['content'].strip()
         
+        # Clean rephrased text (remove leading bullets/numbers from each line)
+        cleaned_lines = []
+        for line in rephrased_text.split('\n'):
+            cleaned_line = re.sub(r'^(\d+\.?|[-*•])\s*', '', line.strip())
+            if cleaned_line:
+                cleaned_lines.append(cleaned_line)
+        rephrased_text = "\n".join(cleaned_lines)
+        
         return jsonify({
             "status": "success",
             "logs": rephrased_text
@@ -405,11 +414,14 @@ def generate_report():
         lines = [line.strip() for line in work_log.split('\n') if line.strip()]
         formatted_work_logs = ""
         for i, line in enumerate(lines):
+            # Strip leading bullets like "1. ", "- ", "* ", etc. added by AI
+            clean_line = re.sub(r'^(\d+\.?|[-*•])\s*', '', line)
+            
             if i == 0:
-                formatted_work_logs += line
+                formatted_work_logs += clean_line
             else:
                 num = 7 + i
-                formatted_work_logs += f"{num}. {line}"
+                formatted_work_logs += f"{num}. {clean_line}"
             
             if i < len(lines) - 1:
                 formatted_work_logs += "\n"
