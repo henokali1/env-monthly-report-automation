@@ -8,27 +8,99 @@ from werkzeug.utils import secure_filename
 from docxtpl import DocxTemplate, InlineImage
 from docx.shared import Mm
 from PIL import Image, ImageFilter
+import requests
 import uuid
 import webbrowser
+import calendar
 from threading import Timer
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = os.path.join(os.getcwd(), 'static', 'uploads')
 app.config['CONFIG_FILE'] = os.path.join(os.getcwd(), 'config.json')
 
-# Ensure upload folder exists
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+# API Configuration from User Sample
+BASE_URL = "https://env-tls.henokcodes.com"
+
+class APIClient:
+    def __init__(self, base_url, username, password):
+        self.base_url = base_url.rstrip('/')
+        self.username = username
+        self.password = password
+        self.access_token = None
+        self.refresh_token = None
+
+    def login(self):
+        """Obtain JWT tokens from the Django API."""
+        if not self.username or not self.password:
+            return False
+            
+        url = f"{self.base_url}/api/token/"
+        try:
+            response = requests.post(url, json={
+                "username": self.username,
+                "password": self.password
+            }, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+            self.access_token = data.get('access')
+            self.refresh_token = data.get('refresh')
+            return True
+        except requests.exceptions.RequestException as e:
+            print(f"Login failed: {e}")
+            return False
+
+    def get_work_logs(self, start_date=None, end_date=None, tag=None):
+        """Fetch WorkLog data from the secure endpoint."""
+        if not self.access_token:
+            if not self.login():
+                return None
+
+        url = f"{self.base_url}/work-logs/api/logs/"
+        params = {}
+        if start_date: params['start_date'] = start_date
+        if end_date: params['end_date'] = end_date
+        if tag: params['tag'] = tag
+
+        headers = {
+            "Authorization": f"Bearer {self.access_token}"
+        }
+
+        try:
+            response = requests.get(url, params=params, headers=headers, timeout=10)
+            
+            if response.status_code == 401:
+                if self.login():
+                    headers["Authorization"] = f"Bearer {self.access_token}"
+                    response = requests.get(url, params=params, headers=headers, timeout=10)
+                else:
+                    return None
+
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            print(f"Failed to fetch data: {e}")
+            return None
 
 def load_config():
     if os.path.exists(app.config['CONFIG_FILE']):
         with open(app.config['CONFIG_FILE'], 'r') as f:
-            return json.load(f)
-    return {
+            try:
+                config = json.load(f)
+            except:
+                config = {}
+    else:
+        config = {}
+        
+    defaults = {
         "fm01_template": "",
         "fm02_template": "",
         "fm01_base_directory": "",
         "fm02_base_directory": ""
     }
+    for key, val in defaults.items():
+        if key not in config:
+            config[key] = val
+    return config
 
 def save_config(config):
     with open(app.config['CONFIG_FILE'], 'w') as f:
@@ -119,6 +191,107 @@ def pick_folder():
     root.destroy()
     return jsonify({"path": folder_path})
 
+@app.route('/api/fetch_logs', methods=['POST'])
+def fetch_logs():
+    data = request.json
+    month_name = data.get('month')
+    year = data.get('year')
+    report_type = data.get('report_type')
+    
+    # Credentials from environment variables
+    username = os.environ.get("API_USERNAME")
+    password = os.environ.get("API_PASSWORD")
+    
+    # Hardcoded Tag IDs: FM01 is 1, FM02 is 2
+    tag = "1" if report_type == 'FM01' else "2"
+    
+    if not username or not password:
+        return jsonify({"error": "API_USERNAME or API_PASSWORD environment variables are not set."}), 400
+        
+    try:
+        month_num = datetime.datetime.strptime(month_name, "%B").month
+        last_day = calendar.monthrange(int(year), month_num)[1]
+        start_date = f"{year}-{month_num:02d}-01"
+        end_date = f"{year}-{month_num:02d}-{last_day:02d}"
+    except Exception as e:
+        return jsonify({"error": f"Invalid date: {str(e)}"}), 400
+
+    client = APIClient(BASE_URL, username, password)
+    logs = client.get_work_logs(start_date=start_date, end_date=end_date, tag=tag)
+    
+    if logs is not None:
+        # Extract task descriptions
+        # Assuming logs matches the structure from the sample snippet
+        # Sample snippet shows 'data' key in response if success
+        # Wait, the sample Flask app returns jsonify({"data": logs}), so let's check what get_work_logs returns.
+        # get_work_logs returns response.json(), which is the actual list or object from Django.
+        
+        # Format logs as one task per line for the textarea
+        log_lines = []
+        for entry in logs:
+            desc = entry.get('task_description', '').strip()
+            if desc:
+                log_lines.append(desc)
+        
+        return jsonify({
+            "status": "success",
+            "logs": "\n".join(log_lines)
+        })
+    else:
+        return jsonify({"error": "Could not retrieve data from API. Check environment variables and connection."}), 500
+
+@app.route('/api/rephrase_logs', methods=['POST'])
+def rephrase_logs():
+    data = request.json
+    logs = data.get('logs', '')
+    report_type = data.get('report_type')
+    
+    if not logs.strip():
+        return jsonify({"error": "No logs to rephrase"}), 400
+        
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        return jsonify({"error": "OPENAI_API_KEY environment variable not set."}), 400
+
+    # Load prompt from file
+    prompt_file = "fm01-prompt.md" if report_type == "FM01" else "fm02-prompt.md"
+    try:
+        with open(prompt_file, 'r', encoding='utf-8') as f:
+            prompt_template = f.read()
+    except Exception as e:
+        return jsonify({"error": f"Failed to read prompt file {prompt_file}: {str(e)}"}), 500
+
+    # Combine prompt with logs
+    full_prompt = f"{prompt_template}\n\n{logs}"
+
+    try:
+        response = requests.post(
+            "https://api.openai.com/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": "gpt-4o-mini", # Using 4o-mini for speed and cost-efficiency
+                "messages": [
+                    {"role": "system", "content": "You are a professional technical writer for engineering reports."},
+                    {"role": "user", "content": full_prompt}
+                ],
+                "temperature": 0.3
+            },
+            timeout=30
+        )
+        response.raise_for_status()
+        result = response.json()
+        rephrased_text = result['choices'][0]['message']['content'].strip()
+        
+        return jsonify({
+            "status": "success",
+            "logs": rephrased_text
+        })
+    except Exception as e:
+        return jsonify({"error": f"AI Rephrasing failed: {str(e)}"}), 500
+
 @app.route('/api/save_settings', methods=['POST'])
 def save_settings():
     data = request.json
@@ -152,6 +325,43 @@ def upload_image():
         "processed": processed_filename,
         "url": f"/static/uploads/{processed_filename}"
     })
+
+@app.route('/api/rotate_image', methods=['POST'])
+def rotate_image():
+    data = request.json
+    original_filename = data.get('original')
+    processed_filename = data.get('processed')
+    
+    if not original_filename or not processed_filename:
+        return jsonify({"error": "Missing filenames"}), 400
+        
+    original_path = os.path.join(app.config['UPLOAD_FOLDER'], original_filename)
+    processed_path = os.path.join(app.config['UPLOAD_FOLDER'], processed_filename)
+    
+    if not os.path.exists(original_path):
+        return jsonify({"error": "Original image not found"}), 404
+        
+    try:
+        img = Image.open(original_path)
+        # Rotate 90 degrees clockwise
+        rotated_img = img.transpose(Image.ROTATE_270)
+        
+        # Save back to original path (maintaining original format if possible, or just JPEG)
+        if img.format:
+            rotated_img.save(original_path, format=img.format)
+        else:
+            rotated_img.save(original_path)
+            
+        # Re-process the image to update the preview and the version used in docx
+        process_image(original_path, processed_path)
+        
+        # return new URL with cache buster
+        return jsonify({
+            "status": "success",
+            "url": f"/static/uploads/{processed_filename}?t={uuid.uuid4().hex[:8]}"
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/generate_report', methods=['POST'])
 def generate_report():

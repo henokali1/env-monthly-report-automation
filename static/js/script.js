@@ -29,6 +29,75 @@ async function saveSettings() {
     });
 }
 
+async function fetchWorkLogs() {
+    const month = document.getElementById('month').value;
+    const year = document.getElementById('year').value;
+    const reportType = document.querySelector('input[name="report_type"]:checked').value;
+
+    logStatus(`☁️ Fetching work logs for ${month} ${year} (${reportType})...`);
+
+    try {
+        const response = await fetch('/api/fetch_logs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ month, year, report_type: reportType })
+        });
+        const data = await response.json();
+
+        if (data.error) throw new Error(data.error);
+
+        if (data.logs) {
+            document.getElementById('work_log').value = data.logs;
+            logStatus(`✅ Successfully fetched ${data.logs.split('\n').filter(l => l.trim()).length} log entries!`, 'success');
+        } else {
+            logStatus(`⚠️ No logs found for this period/tag.`, 'error');
+        }
+    } catch (error) {
+        logStatus(`❌ Error fetching logs: ${error.message}`, 'error');
+        alert(`Failed to fetch logs: ${error.message}`);
+    }
+}
+
+async function rephraseWorkLogs() {
+    const logs = document.getElementById('work_log').value;
+    const reportType = document.querySelector('input[name="report_type"]:checked').value;
+    const btn = event.currentTarget; // Get the button clicked
+
+    if (!logs.trim()) {
+        alert("Please fetch or enter some logs first!");
+        return;
+    }
+
+    // Disable button and show loading state
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = `<span>⏳</span> Processing...`;
+    logStatus(`✨ AI is rephrasing your logs using ${reportType} prompt...`);
+
+    try {
+        const response = await fetch('/api/rephrase_logs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ logs, report_type: reportType })
+        });
+        const data = await response.json();
+
+        if (data.error) throw new Error(data.error);
+
+        if (data.logs) {
+            document.getElementById('work_log').value = data.logs;
+            logStatus(`✅ Logs rephrased successfully!`, 'success');
+        }
+    } catch (error) {
+        logStatus(`❌ Error rephrasing logs: ${error.message}`, 'error');
+        alert(`Failed to rephrase logs: ${error.message}\n\nTip: Check your OpenAI billing/quota at platform.openai.com`);
+    } finally {
+        // Restore button state
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+}
+
 function triggerUpload(index) {
     const input = document.getElementById('photo_input');
     // Store current slot index to track where single upload should go
@@ -96,7 +165,8 @@ function updatePhotoGrid() {
             slot.innerHTML = `
                 <span class="order-num">${i + 1}</span>
                 <img src="${photo.url}" alt="Photo ${i + 1}">
-                <button class="remove-btn" onclick="removePhoto(${i}, event)">✕</button>
+                <button class="remove-btn" title="Remove Photo" onclick="removePhoto(${i}, event)">✕</button>
+                <button class="rotate-btn" title="Rotate Clockwise" onclick="rotatePhoto(${i}, event)">↻</button>
             `;
         } else {
             slot.classList.remove('filled');
@@ -109,6 +179,35 @@ function updatePhotoGrid() {
             `;
         }
     });
+}
+
+async function rotatePhoto(index, event) {
+    event.stopPropagation();
+    const photo = uploadedPhotos[index];
+    if (!photo) return;
+
+    logStatus(`🔄 Rotating photo ${index + 1}...`);
+
+    try {
+        const response = await fetch('/api/rotate_image', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                original: photo.original,
+                processed: photo.processed
+            })
+        });
+        const data = await response.json();
+
+        if (data.error) throw new Error(data.error);
+
+        // Update the URL with the new one (includes cache buster)
+        uploadedPhotos[index].url = data.url;
+        updatePhotoGrid();
+        logStatus(`✅ Photo ${index + 1} rotated!`, 'success');
+    } catch (error) {
+        logStatus(`❌ Error rotating photo ${index + 1}: ${error.message}`, 'error');
+    }
 }
 
 function removePhoto(index, event) {

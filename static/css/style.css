@@ -251,8 +251,30 @@ textarea:focus {
     font-size: 12px;
 }
 
-.photo-slot.filled:hover .remove-btn {
+.photo-slot.filled:hover .remove-btn,
+.photo-slot.filled:hover .rotate-btn {
     display: flex;
+}
+
+.photo-slot .rotate-btn {
+    position: absolute;
+    bottom: 5px;
+    right: 5px;
+    background: rgba(99, 102, 241, 0.8);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    z-index: 10;
+}
+
+.photo-slot .rotate-btn:hover {
+    background: var(--primary-color);
 }
 
 .photo-slot .order-num {

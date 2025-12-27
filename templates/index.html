@@ -42,36 +42,38 @@
 
         <section class="card">
             <h2 class="section-title"><span>⚙️</span> 2. Configuration</h2>
-            <div class="form-group">
-                <label>FM01 MET Template Path</label>
-                <div class="file-input-wrapper">
-                    <input type="text" id="fm01_template" value="{{ config.fm01_template }}" readonly
-                        placeholder="Select FM01 Template...">
-                    <button class="btn-icon" onclick="pickPath('fm01_template', 'file')">📁 Choose</button>
+            <div class="grid">
+                <div class="form-group">
+                    <label>FM01 MET Template Path</label>
+                    <div class="file-input-wrapper">
+                        <input type="text" id="fm01_template" value="{{ config.fm01_template }}" readonly
+                            placeholder="Select FM01 Template...">
+                        <button class="btn-icon" onclick="pickPath('fm01_template', 'file')">📁 Choose</button>
+                    </div>
                 </div>
-            </div>
-            <div class="form-group">
-                <label>FM02 IT Template Path</label>
-                <div class="file-input-wrapper">
-                    <input type="text" id="fm02_template" value="{{ config.fm02_template }}" readonly
-                        placeholder="Select FM02 Template...">
-                    <button class="btn-icon" onclick="pickPath('fm02_template', 'file')">📁 Choose</button>
+                <div class="form-group">
+                    <label>FM02 IT Template Path</label>
+                    <div class="file-input-wrapper">
+                        <input type="text" id="fm02_template" value="{{ config.fm02_template }}" readonly
+                            placeholder="Select FM02 Template...">
+                        <button class="btn-icon" onclick="pickPath('fm02_template', 'file')">📁 Choose</button>
+                    </div>
                 </div>
-            </div>
-            <div class="form-group">
-                <label>FM01 MET Output Base Directory</label>
-                <div class="file-input-wrapper">
-                    <input type="text" id="fm01_base_directory" value="{{ config.fm01_base_directory }}" readonly
-                        placeholder="Select FM01 Base Directory...">
-                    <button class="btn-icon" onclick="pickPath('fm01_base_directory', 'folder')">📂 Choose</button>
+                <div class="form-group">
+                    <label>FM01 MET Output Base Directory</label>
+                    <div class="file-input-wrapper">
+                        <input type="text" id="fm01_base_directory" value="{{ config.fm01_base_directory }}" readonly
+                            placeholder="Select FM01 Base Directory...">
+                        <button class="btn-icon" onclick="pickPath('fm01_base_directory', 'folder')">📂 Choose</button>
+                    </div>
                 </div>
-            </div>
-            <div class="form-group">
-                <label>FM02 IT Output Base Directory</label>
-                <div class="file-input-wrapper">
-                    <input type="text" id="fm02_base_directory" value="{{ config.fm02_base_directory }}" readonly
-                        placeholder="Select FM02 Base Directory...">
-                    <button class="btn-icon" onclick="pickPath('fm02_base_directory', 'folder')">📂 Choose</button>
+                <div class="form-group">
+                    <label>FM02 IT Output Base Directory</label>
+                    <div class="file-input-wrapper">
+                        <input type="text" id="fm02_base_directory" value="{{ config.fm02_base_directory }}" readonly
+                            placeholder="Select FM02 Base Directory...">
+                        <button class="btn-icon" onclick="pickPath('fm02_base_directory', 'folder')">📂 Choose</button>
+                    </div>
                 </div>
             </div>
         </section>
@@ -94,7 +96,13 @@
                 </div>
             </div>
             <div class="form-group">
-                <label>Work Log</label>
+                <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 0.5rem; gap: 0.5rem;">
+                    <label style="margin-bottom: 0;">Work Log</label>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button class="btn-icon" style="padding: 0.25rem 0.75rem; font-size: 0.8rem;" onclick="fetchWorkLogs()">☁️ Fetch</button>
+                        <button class="btn-icon" style="padding: 0.25rem 0.75rem; font-size: 0.8rem; border-color: #a855f7;" onclick="rephraseWorkLogs(event)">✨ AI Rephrase</button>
+                    </div>
+                </div>
                 <textarea id="work_log" rows="6"
                     placeholder="Enter work activities, one per line or as a block..."></textarea>
             </div>
