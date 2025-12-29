@@ -19,6 +19,9 @@ app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = os.path.join(os.getcwd(), 'static', 'uploads')
 app.config['CONFIG_FILE'] = os.path.join(os.getcwd(), 'config.json')
 
+# Ensure directories exist
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
 # API Configuration from User Sample
 BASE_URL = "https://env-tls.henokcodes.com"
 
